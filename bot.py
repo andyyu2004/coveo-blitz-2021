@@ -1,8 +1,10 @@
-from graph import Graph, bfs, get_adj
+import game_command
+from graph import Graph, bfs, get_adj, manhattan
 from typing import List, Tuple, Set
 from game_message import Depot, GameMessage, Position, Crew, Map, TileType, Unit, UnitType
 from game_command import Action, UnitAction, UnitActionType, BuyAction
 import random
+import time
 
 
 def separate_types(crew: Crew) -> Tuple[List[Unit], List[Unit], List[Unit]]:
@@ -19,7 +21,7 @@ def separate_types(crew: Crew) -> Tuple[List[Unit], List[Unit], List[Unit]]:
 
         elif crew_member.type == UnitType.CART:
             carts.append(crew_member)
-
+        # else
         elif crew_member.type == UnitType.OUTLAW:
             outlaws.append(crew_member)
 
@@ -32,7 +34,13 @@ class Bot:
     game_message: GameMessage
     enemy_bases: Set[Position]
     occupied: Set[Position]
-    cart_destinations: Set[Position]
+    # stores where carts are assigned to go
+    cart_assignments: Set[Position]
+
+    def init_cart_assignments(self):
+        if self.game_message.tick > 1:
+            return
+        self.cart_assignments = set()
 
     def init_enemy_bases(self):
         # only run this once
@@ -68,25 +76,24 @@ class Bot:
         self.game_message = game_message
         self.init_enemy_bases()
         self.calculate_occupied()
+        self.init_cart_assignments()
 
         my_crew: Crew = game_message.get_crews_by_id()[game_message.crewId]
         (miners, carts, outlaws) = separate_types(my_crew)
         mymap: Map = game_message.map
-
-        # stores where carts are assigned to go
-        cart_assignments: Set[Position] = set()
 
         """actions: List[UnitAction] = [UnitAction(UnitActionType.MOVE,
                                                 miners[0].id,
                                                 self.get_first_mine(mymap))]"""
         actions = []
         self.graph = Graph(game_message)
-
+        # ratio of carts : miners
+        cart_ratio = max(1, mymap.get_map_size() / 12)
         if game_message.tick < game_message.totalTick * 2 / 3:
-            if len(miners) <= len(carts) and my_crew.prices.MINER <= my_crew.blitzium:
+            if cart_ratio*len(miners) <= len(carts) and my_crew.prices.MINER <= my_crew.blitzium:
                 actions.append(BuyAction(UnitType.MINER))
 
-            elif my_crew.prices.CART <= my_crew.blitzium and not (len(carts) >= len(miners)):
+            elif my_crew.prices.CART <= my_crew.blitzium and not (len(carts) >= cart_ratio*len(miners)):
                 actions.append(BuyAction(UnitType.CART))
 
         for miner in miners:
@@ -115,7 +122,7 @@ class Bot:
                             break
                 if not assigned:
                     destination = self.get_adj_empty(
-                        self.get_richest_miner(my_crew), mymap)
+                        self.get_good_cart_objective(cart, my_crew), mymap)
                     actions.append(UnitAction(
                         UnitActionType.MOVE, cart.id, destination))
 
@@ -134,13 +141,30 @@ class Bot:
     def get_closest_mine(self, start: Position, mymap: Map) -> Position:
         return bfs(self.graph, start, lambda pos: self.is_adj_to_tile_type(pos, mymap, TileType.MINE) and not self.is_occupied(pos))
 
-    def get_richest_miner(self, crew: Crew) -> Position:
+    # takes current position of the cart and returns a "good" objective position
+    def get_good_cart_objective(self, cart: Unit, crew: Crew) -> Position:
+
+        position = cart.position
+        mymap = self.game_message.map
         max_blitzium = -1
+        best_miner = None
         for unit in crew.units:
-            if unit.blitzium > max_blitzium:
+            if unit.blitzium > max_blitzium and unit.position not in self.cart_assignments:
                 max_blitzium = unit.blitzium
-                best_position = unit.position
-        return best_position
+                best_miner = unit.position
+        best_depot = None
+        max_depot_blitzium = -1
+        for depot in mymap.depots:
+            # maybe its ok to send multiple carts to the same depot
+            if depot.blitzium > max_depot_blitzium and manhattan(position, depot.position) <= 5:
+                max_depot_blitzium = depot.blitzium
+                best_depot = depot
+
+        # if there is a best_depot and it is closer than the best_miner
+        best = best_depot.position if best_depot and manhattan(
+            position, best_depot.position) < manhattan(position, best_miner) else best_miner
+        self.cart_assignments.add(best)
+        return best
 
     def get_adj_mine(self, pos: Position, mymap: Map) -> Position:
         for adj in get_adj(pos, mymap.get_map_size()):
