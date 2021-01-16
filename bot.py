@@ -143,15 +143,16 @@ class Bot:
 
     # takes current position of the cart and returns a "good" objective position
     def get_good_cart_objective(self, cart: Unit, crew: Crew) -> Position:
-
         position = cart.position
         mymap = self.game_message.map
         max_blitzium = -1
         best_miner = None
         for unit in crew.units:
-            if unit.blitzium > max_blitzium and unit.position not in self.cart_assignments:
+            if unit.blitzium > max_blitzium and unit.position:
                 max_blitzium = unit.blitzium
                 best_miner = unit.position
+        assert(best_miner is not None)
+
         best_depot = None
         max_depot_blitzium = -1
         for depot in mymap.depots:
