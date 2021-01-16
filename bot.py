@@ -90,7 +90,7 @@ class Bot:
                 assigned = False
                 for i in get_adj(cart.position, mymap.get_map_size()):
                     for j in my_crew.units:
-                        if j.blitzium > 0 and j.position == i:
+                        if j.blitzium > 0 and j.position == i and j.type != UnitType.MINER:
                             actions.append(UnitAction(
                                 UnitActionType.PICKUP, cart.id, j.position))
                             assigned = True
