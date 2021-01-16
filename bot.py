@@ -61,14 +61,13 @@ class Bot:
                                                 self.get_first_mine(mymap))]"""
         actions = []
         self.graph = Graph(game_message)
-        if len(miners) <= len(carts) and my_crew.prices.MINER <= my_crew.blitzium:
-            actions.append(BuyAction(UnitType.MINER))
 
-        if my_crew.prices.CART <= my_crew.blitzium and not (len(carts) >= len(miners)):
-            actions.append(BuyAction(UnitType.CART))
+        if game_message.tick < game_message.totalTick * 2 / 3:
+            if len(miners) <= len(carts) and my_crew.prices.MINER <= my_crew.blitzium:
+                actions.append(BuyAction(UnitType.MINER))
 
-        # if self.get_first_mine(mymap) and my_crew.prices.MINER < my_crew.blitzium:
-        #     actions.append(BuyAction(UnitType.CART))
+            elif my_crew.prices.CART <= my_crew.blitzium and not (len(carts) >= len(miners)):
+                actions.append(BuyAction(UnitType.CART))
 
         for miner in miners:
             if self.is_adj_to_tile_type(miner.position, mymap, TileType.MINE):
