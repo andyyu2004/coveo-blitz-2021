@@ -27,6 +27,7 @@ class Position:
     x: int
     y: int
 
+
 @dataclass_json
 @dataclass
 class Prices:
@@ -34,12 +35,14 @@ class Prices:
     OUTLAW: int
     CART: int
 
+
 @dataclass_json
 @dataclass
 class Rules:
     MAX_MINER_CARGO: int
     MAX_CART_CARGO: int
     MAX_MINER_MOVE_CARGO: int
+
 
 @dataclass_json
 @dataclass
@@ -56,7 +59,7 @@ class UnitType(Enum):
 
 
 @dataclass_json
-@dataclass 
+@dataclass
 class Map:
     tiles: List[List[str]]
     depots: List[Depot]
@@ -67,12 +70,12 @@ class Map:
     def validate_tile_exists(self, position: Position):
         if position.x < 0 or position.y < 0 or position.x >= self.get_map_size() or position.y >= self.get_map_size():
             raise Exception("Position out is of map")
-    
-    def get_raw_tile_value_at(self, position: Position):
+
+    def get_raw_tile_value_at(self, position: Position) -> str:
         self.validate_tile_exists(position)
         return self.tiles[position.x][position.y]
 
-    def get_tile_type_at(self, position: Position): 
+    def get_tile_type_at(self, position: Position) -> TileType:
         raw_tile = self.get_raw_tile_value_at(position)
         if raw_tile == "EMPTY":
             return TileType.EMPTY

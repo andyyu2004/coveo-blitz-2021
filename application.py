@@ -5,6 +5,7 @@ import os
 import websockets
 import json
 
+
 from bot import Bot
 from bot_message import BotMessage, MessageType
 from game_message import GameMessage, Crew
@@ -30,6 +31,7 @@ async def game_loop(websocket: websockets.WebSocketServerProtocol, bot: Bot):
             message = await websocket.recv()
         except websockets.exceptions.ConnectionClosed:
             # Connection is closed, the game is probably over
+            print("connection closed")
             break
         game_message: GameMessage = GameMessage.from_json(message)
 
