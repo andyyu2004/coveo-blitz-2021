@@ -88,8 +88,17 @@ class Bot:
         actions = []
         self.graph = Graph(game_message)
         # ratio of carts : miners
-        cart_ratio = max(1, mymap.get_map_size() / 12)
-        if game_message.tick < game_message.totalTick * 2 / 3:
+
+        def calculate_cart_ratio() -> float:
+            # prioritize miners early to take up the spots adj to mines
+            if game_message.tick < 200:
+                return 1
+            else:
+                return max(1, mymap.get_map_size() / 12)
+
+        cart_ratio = calculate_cart_ratio()
+
+        if game_message.tick < game_message.totalTick * 3 / 5:
             if cart_ratio*len(miners) <= len(carts) and my_crew.prices.MINER <= my_crew.blitzium:
                 actions.append(BuyAction(UnitType.MINER))
 
@@ -120,7 +129,7 @@ class Bot:
                                 UnitActionType.PICKUP, cart.id, j.position))
                             assigned = True
                             break
-                if not assigned:
+                if not assigned and self.get_good_cart_objective(cart, my_crew):
                     destination = self.get_adj_empty(
                         self.get_good_cart_objective(cart, my_crew), mymap)
                     actions.append(UnitAction(
@@ -148,7 +157,7 @@ class Bot:
         max_blitzium = -1
         best_miner = None
         for unit in crew.units:
-            if unit.blitzium > max_blitzium and unit.position:
+            if unit.blitzium > max_blitzium:
                 max_blitzium = unit.blitzium
                 best_miner = unit.position
         assert(best_miner is not None)
