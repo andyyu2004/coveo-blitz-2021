@@ -22,7 +22,7 @@ class TileType(Enum):
 
 
 @dataclass_json
-@dataclass
+@dataclass(unsafe_hash=True)
 class Position:
     x: int
     y: int

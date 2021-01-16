@@ -1,69 +1,76 @@
 from collections import deque
-from game_message import GameMessage, Position, TileType
-from typing import Deque, List, Tuple
+from dataclasses import dataclass
+from game_message import GameMessage, Map, Position, TileType
+from typing import Deque, Dict, List, Tuple
 import heapq
 
 
-class Node:
+class Vertex:
     pos: Position
-    # neighbors  : List[Node]
+    tile_type: TileType
 
-    def __init__(self,  pos: Position, tile_type: TileType):
+    def __init__(self, pos: Position, tile_type: TileType):
         self.pos = pos
-        self.neighbors = []
         self.tile_type = tile_type
-
-    def __repr__(self) -> str:
-        return f"({self.x}, {self.y}, {len(self.neighbors)})"
 
 
 class Graph:
-    graph: List[List[Node]]
+    adj: Dict[Position, List[Position]]
 
     def __init__(self, msg: GameMessage):
-        mymap = msg.map
-        game_size = mymap.get_map_size()
-        self.graph = [[] for _ in range(game_size)]
+        adj: Dict[Position, [Position]] = {}
+        for (i, row) in enumerate(msg.map.tiles):
+            for (j, _tile) in enumerate(row):
+                position = Position(i, j)
+                adj[position] = []
 
-        for i in range(game_size):
-            for j in range(game_size):
-                tile_type = mymap.get_raw_tile_value_at(Position(i, j))
-                self.graph[i].append(Node(Position(i, j), tile_type))
+        game_size = msg.map.get_map_size()
+        for u in adj:
+            for v in get_adj(u, game_size):
+                if msg.map.get_tile_type_at(v) == TileType.EMPTY:
+                    adj[u].append(v)
 
-        for i in range(game_size):
-            for j in range(game_size):
-                if j > 0 and mymap.get_tile_type_at(Position(i, j - 1)) == TileType.EMPTY:
-                    self.graph[i][j].neighbors.append(self.graph[i][j - 1])
-
-                if i < game_size - 1 and mymap.get_tile_type_at(Position(i + 1, j)) == TileType.EMPTY:
-                    self.graph[i][j].neighbors.append(self.graph[i + 1][j])
-
-                if j < game_size - 1 and mymap.get_tile_type_at(Position(i, j + 1)) == TileType.EMPTY:
-                    self.graph[i][j].neighbors.append(self.graph[i][j + 1])
-
-                if i > 0 and mymap.get_tile_type_at(Position(i - 1, j)) == TileType.EMPTY:
-                    self.graph[i][j].neighbors.append(self.graph[i - 1][j])
+        self.adj = adj
 
 
-def is_mine(node: Node, mygraph: Graph):
-    return mygraph.graph[node.x][node.y].get_tile_type_at(Position(node.x, node.y)) == TileType.MINE
+def get_adj(pos: Position, game_size: int) -> List[Position]:
+    adj = []
+    i = pos.x
+    j = pos.y
+    if j > 0:
+        adj.append(Position(i, j - 1))
+    if i < game_size - 1:
+        adj.append(Position(i + 1, j))
+    if j < game_size - 1:
+        adj.append(Position(i, j + 1))
+    if i > 0:
+        adj.append(Position(i - 1, j))
+    return adj
+
+
+def is_adj_to_tile_type(pos: Position, mymap: Map, tile_type: TileType) -> bool:
+    for adj in get_adj(pos, mymap.get_map_size()):
+        if mymap.get_tile_type_at(adj) == tile_type:
+            return True
+    return False
 
 
 def manhattan(pos1: Position, pos2: Position):
     return abs(pos1.x - pos2.x) + abs(pos1.y - pos2.y)
 
 
-def bfs(graph: Graph, start: Node, is_goal) -> Node:
-    queue = deque()
+def bfs(graph: Graph, start: Position, is_goal) -> Position:
+    queue: Deque[Position] = deque()
     queue.append(start)
     visited = set()
     while queue:
         node = queue.popleft()
         if node in visited:
             continue
+        visited.add(node)
         if is_goal(node):
             return node
-        for neighbor in node.neighbors:
+        for neighbor in graph.adj[node]:
             queue.append(neighbor)
 
 
