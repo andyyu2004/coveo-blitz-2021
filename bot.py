@@ -1,6 +1,5 @@
-from collections import Set
 from graph import Graph, bfs, get_adj
-from typing import List, Tuple
+from typing import List, Tuple, Set
 from game_message import GameMessage, Position, Crew, Map, TileType, Unit, UnitType
 from game_command import Action, UnitAction, UnitActionType, BuyAction
 import random
@@ -90,7 +89,7 @@ class Bot:
                 assigned = False
                 for i in get_adj(cart.position, mymap.get_map_size()):
                     for j in my_crew.units:
-                        if j.blitzium > 0 and j.position == i and j.type != UnitType.MINER:
+                        if j.blitzium > 0 and j.position == i and j.type == UnitType.MINER:
                             actions.append(UnitAction(
                                 UnitActionType.PICKUP, cart.id, j.position))
                             assigned = True
