@@ -1,6 +1,6 @@
 from graph import Graph, bfs, get_adj
 from typing import List, Tuple, Set
-from game_message import GameMessage, Position, Crew, Map, TileType, Unit, UnitType
+from game_message import Depot, GameMessage, Position, Crew, Map, TileType, Unit, UnitType
 from game_command import Action, UnitAction, UnitActionType, BuyAction
 import random
 
@@ -30,13 +30,29 @@ class Bot:
 
     graph: Graph
     game_message: GameMessage
+    enemy_bases: Set[Position]
     occupied: Set[Position]
+    cart_destinations: Set[Position]
+
+    def init_enemy_bases(self):
+        # only run this once
+        if self.game_message.tick > 1:
+            return
+        self.enemy_bases = set()
+        for crew in self.game_message.crews:
+            if crew.id == self.game_message.crewId:
+                continue
+            base = crew.homeBase
+            for i in range(base.x - 3, base.x + 4):
+                for j in range(base.y - 3, base.y + 4):
+                    self.enemy_bases.add(Position(i, j))
 
     def is_occupied(self, position: Position) -> bool:
         return position in self.occupied
 
     def calculate_occupied(self):
-        self.occupied = set()
+        # occupied includes enemy base
+        self.occupied = self.enemy_bases.copy()
         for crew in self.game_message.crews:
             for unit in crew.units:
                 self.occupied.add(unit.position)
@@ -50,11 +66,15 @@ class Bot:
         """
 
         self.game_message = game_message
+        self.init_enemy_bases()
         self.calculate_occupied()
 
         my_crew: Crew = game_message.get_crews_by_id()[game_message.crewId]
         (miners, carts, outlaws) = separate_types(my_crew)
         mymap: Map = game_message.map
+
+        # stores where carts are assigned to go
+        cart_assignments: Set[Position] = set()
 
         """actions: List[UnitAction] = [UnitAction(UnitActionType.MOVE,
                                                 miners[0].id,
@@ -87,8 +107,8 @@ class Bot:
             else:
                 assigned = False
                 for i in get_adj(cart.position, mymap.get_map_size()):
-                    for j in my_crew.units:
-                        if j.blitzium > 0 and j.position == i and j.type == UnitType.MINER:
+                    for j in miners + mymap.depots:
+                        if j.blitzium > 0 and j.position == i:
                             actions.append(UnitAction(
                                 UnitActionType.PICKUP, cart.id, j.position))
                             assigned = True
